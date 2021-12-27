@@ -14,7 +14,7 @@ import torch.optim as optim
 from torch.autograd import Variable
 
 from utils import load_data, accuracy
-from models import GAT, SpGAT
+from models import GAT, SpGAT, MG_GAT
 
 # Training settings
 parser = argparse.ArgumentParser()
@@ -52,7 +52,7 @@ if args.sparse:
                 nheads=args.nb_heads, 
                 alpha=args.alpha)
 else:
-    model = GAT(nfeat=features.shape[1], 
+    model = MG_GAT(nfeat=features.shape[2], 
                 nhid=args.hidden, 
                 nclass=int(labels.max()) + 1, 
                 dropout=args.dropout, 
@@ -78,9 +78,16 @@ def train(epoch):
     t = time.time()
     model.train()
     optimizer.zero_grad()
+    
+#    import pdb;pdb.set_trace()
+
     output = model(features, adj)
-    loss_train = F.nll_loss(output[idx_train], labels[idx_train])
-    acc_train = accuracy(output[idx_train], labels[idx_train])
+#    print("nll_loss")
+#    print(output.shape)
+#    print(labels.shape)
+    nclass = int(labels.max()) + 1
+    loss_train = F.nll_loss(output[idx_train].reshape(-1,nclass), labels[idx_train].reshape(-1))
+    acc_train = accuracy(output[idx_train].reshape(-1,nclass), labels[idx_train].reshape(-1))
     loss_train.backward()
     optimizer.step()
 
@@ -90,8 +97,8 @@ def train(epoch):
         model.eval()
         output = model(features, adj)
 
-    loss_val = F.nll_loss(output[idx_val], labels[idx_val])
-    acc_val = accuracy(output[idx_val], labels[idx_val])
+    loss_val = F.nll_loss(output[idx_val].reshape(-1,nclass), labels[idx_val].reshape(-1))
+    acc_val = accuracy(output[idx_val].reshape(-1,nclass), labels[idx_val].reshape(-1))
     print('Epoch: {:04d}'.format(epoch+1),
           'loss_train: {:.4f}'.format(loss_train.data.item()),
           'acc_train: {:.4f}'.format(acc_train.data.item()),
@@ -104,9 +111,10 @@ def train(epoch):
 
 def compute_test():
     model.eval()
+    nclass = int(labels.max()) + 1
     output = model(features, adj)
-    loss_test = F.nll_loss(output[idx_test], labels[idx_test])
-    acc_test = accuracy(output[idx_test], labels[idx_test])
+    loss_test = F.nll_loss(output[idx_test].reshape(-1,nclass), labels[idx_test].reshape(-1))
+    acc_test = accuracy(output[idx_test].reshape(-1,nclass), labels[idx_test].reshape(-1))
     print("Test set results:",
           "loss= {:.4f}".format(loss_test.data.item()),
           "accuracy= {:.4f}".format(acc_test.data.item()))
